@@ -112,7 +112,7 @@ A concise 5–7 minute demo can follow this order:
 4. Run the custom `--compare` command; highlight FQ3 and FQ4 as semantic queries.
 5. Open the evidence table above and the corpus manifest, then show the GitHub repository.
 
-**YouTube video:** add the final URL here before submission.
+**YouTube video:** [Assignment 7 demonstration](https://youtu.be/abD2VOAhqDo)
 
 ## Submission checklist
 
@@ -122,7 +122,7 @@ A concise 5–7 minute demo can follow this order:
 - [x] At least two custom queries require semantic recall
 - [x] Perception SYSTEM contains zero MCP tool names
 - [x] README contains the corpus manifest links and saved traces
-- [ ] Add the YouTube URL
+- [x] Add the YouTube URL
 - [ ] Push the final repository and confirm that `.env` and runtime `state/` are not committed
 
 Only `evidence/` should be used as submission evidence. Any ignored files under the legacy `traces/` directory came from earlier development attempts and are intentionally excluded.
