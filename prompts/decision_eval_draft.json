@@ -1,0 +1,11 @@
+{
+  "explicit_reasoning": false,
+  "structured_output": false,
+  "tool_separation": false,
+  "conversation_loop": false,
+  "instructional_framing": false,
+  "internal_self_checks": false,
+  "reasoning_type_awareness": false,
+  "fallbacks": false,
+  "overall_clarity": "Too vague. No JSON contract, no ban on hallucinated Wikipedia, no rule against passing art: handles as URLs, no one-tool-per-turn rule."
+}

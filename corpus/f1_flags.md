@@ -1,0 +1,13 @@
+# Formula One flags and race-control signals
+
+Race control communicates with drivers using a flag code that has been stable for decades, plus LED panels and steering-wheel lights that repeat the same meanings. The **green flag** (or green lights) starts a session or restarts after a caution. A **yellow flag** means danger: drivers must slow and are forbidden from overtaking. Double yellows mean a more serious hazard, often a car or marshal on track. A **red flag** stops the session; cars proceed to the pit lane or a designated stopping point. The **blue flag** warns a faster car is approaching a lapped car, which must let the leader through. The **black flag** with a car number is a disqualification order. **Black-and-orange** (meatball) means a mechanical problem that must be fixed. **Black-and-white** is a sporting warning. The **chequered flag** ends the race.
+
+Virtual Safety Car (VSC) and full Safety Car periods sit on top of the flag system. Under VSC, drivers must stay above a minimum delta time so the field is compressed without bunching behind a physical car. A full Safety Car leads the pack; pit-lane timing and tyre-delta calculations change because everyone can pit at reduced time loss. Restart rules after a Safety Car have decided titles (Abu Dhabi 2021 is the canonical modern example).
+
+Yellow-flag overtaking is a licence-threatening offence. Stewards review onboard, GPS, and marshal posts. A driver who gains a place under yellow is usually instructed to give it back; failure to do so brings a time penalty. Red-flag procedures include parc fermé conditions: teams cannot change the car except for specified safety work, which is why a red flag can freeze a strategic tyre disadvantage until the restart.
+
+LED panels at marshal posts repeat flags for wet-weather visibility. The FIA can also show a **white flag** for a slow car ahead. Wet-weather **red-and-yellow** striped flags warn of a slippery surface (oil, water). Drivers still have to interpret local conditions — a green sector after a yellow does not mean the debris is gone, only that the immediate post is clear.
+
+Race-control radio to the teams is logged. Team radio to the driver may not discuss pending penalties in some eras; the sporting regulations evolve. What does not change is the hierarchy: flags and race-control lights override any dashboard prediction. A driver who ignores a red or double yellow is a danger to marshals.
+
+For retrieval: **yellow = no overtake**, **red = session stopped**, **blue = let the faster car through**, **VSC = delta time**, **Safety Car = bunched restart**. These terms appear in strategy notes whenever a race is neutralized.

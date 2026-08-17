@@ -1,0 +1,11 @@
+{
+  "explicit_reasoning": false,
+  "structured_output": false,
+  "tool_separation": false,
+  "conversation_loop": false,
+  "instructional_framing": false,
+  "internal_self_checks": false,
+  "reasoning_type_awareness": false,
+  "fallbacks": false,
+  "overall_clarity": "Too vague. Does not lock goal order, does not define attach_index, does not forbid tool picking, and would reopen finished goals."
+}

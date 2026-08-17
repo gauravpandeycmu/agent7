@@ -1,0 +1,11 @@
+{
+  "explicit_reasoning": true,
+  "structured_output": true,
+  "tool_separation": true,
+  "conversation_loop": true,
+  "instructional_framing": true,
+  "internal_self_checks": true,
+  "reasoning_type_awareness": true,
+  "fallbacks": true,
+  "overall_clarity": "Locks a sticky ordered goal list, uses position-based attach_index instead of invented artifact ids, forbids tool execution, requires evidence before done, and gives worked examples for the four target queries."
+}

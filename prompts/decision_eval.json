@@ -1,0 +1,11 @@
+{
+  "explicit_reasoning": true,
+  "structured_output": true,
+  "tool_separation": true,
+  "conversation_loop": true,
+  "instructional_framing": true,
+  "internal_self_checks": true,
+  "reasoning_type_awareness": true,
+  "fallbacks": true,
+  "overall_clarity": "Forces a Pydantic JSON contract (kind/tool_name/arguments_json), one MCP tool per turn, grounding in attached bytes, a ban on art: handles as URLs, typed reasoning tags, and explicit fallbacks for failed fetches and already-created files."
+}
