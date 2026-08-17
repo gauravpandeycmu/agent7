@@ -1,0 +1,75 @@
+
+##############################################################################
+QUERY D — bound 6 iterations
+##############################################################################
+
+══════════════════════════════════════════════════════════════════════════════
+run 681eca9f  ─  query: Search for "Python asyncio best practices", read the top 3 results, and give me a short numbered list of the advice they agree on.
+══════════════════════════════════════════════════════════════════════════════
+[mcp] loaded 12 tools: ['web_search', 'fetch_url', 'get_time', 'currency_convert', 'weather_forecast', 'read_file', 'list_dir', 'create_file', 'update_file', 'edit_file', 'index_document', 'search_knowledge']
+
+─── iter 1 ─────────────────────────────────────────────
+[memory.read]   2 hits
+[perception]    ○ g:b30c558d — Find the top 3 web sources for Python asyncio best practices
+[decision]      TOOL_CALL: web_search({"query": "Python asyncio best practices", "max_results": 3})
+[action]        → {   "title": "Python 's asyncio : A Hands-On Walkthrough – Real Python",   "url": "https://realpython.com/async-io-python/",   "snippet": "Jul 30, 2025 · In this tutorial, you’ll learn how Python asyn...
+
+─── iter 2 ─────────────────────────────────────────────
+[memory.read]   3 hits
+[perception]    ✓ g:b30c558d — Find the top 3 web sources for Python asyncio best practices
+[perception]    ○ g:ab9b76a8 — Open research source 1: https://realpython.com/async-io-python/
+[perception]    ○ g:57cafcac — Open research source 2: https://docs.python.org/3/library/asyncio.html
+[perception]    ○ g:39657f59 — Open research source 3: https://www.c-sharpcorner.com/article/python-asyncio-complete-practical-guide-for-concurrent-io/
+[perception]    ○ g:836d9d7b — Synthesize common advice from all fetched sources for: Search for "Python asyncio best practices", read the top 3 results, and give me a short numbered list of the advice they agree on.
+[decision]      TOOL_CALL: fetch_url({"url": "https://realpython.com/async-io-python/"})
+[action]        → [artifact art:5e4e9319596ff3b9, 57093 bytes] preview: {   "status": 200,   "content_type": "text/plain",   "length_bytes": 53553,   "text": "Python's asyncio: A Hands-On Walkthrough – Real Python\nSta...   +art:5e4e9319596ff3b9
+
+─── iter 3 ─────────────────────────────────────────────
+[memory.read]   4 hits
+[perception]    ✓ g:b30c558d — Find the top 3 web sources for Python asyncio best practices
+[perception]    ✓ g:ab9b76a8 — Open research source 1: https://realpython.com/async-io-python/
+[perception]    ○ g:57cafcac — Open research source 2: https://docs.python.org/3/library/asyncio.html
+[perception]    ○ g:39657f59 — Open research source 3: https://www.c-sharpcorner.com/article/python-asyncio-complete-practical-guide-for-concurrent-io/
+[perception]    ○ g:836d9d7b — Synthesize common advice from all fetched sources for: Search for "Python asyncio best practices", read the top 3 results, and give me a short numbered list of the advice they agree on.
+[decision]      TOOL_CALL: fetch_url({"url": "https://docs.python.org/3/library/asyncio.html"})
+[action]        → [artifact art:65413db024726609, 4392 bytes] preview: {   "status": 200,   "content_type": "text/plain",   "length_bytes": 3948,   "text": "asyncio â Asynchronous I/O — Python 3.14.7 documentation\nT...   +art:65413db024726609
+
+─── iter 4 ─────────────────────────────────────────────
+[memory.read]   5 hits
+[perception]    ✓ g:b30c558d — Find the top 3 web sources for Python asyncio best practices
+[perception]    ✓ g:ab9b76a8 — Open research source 1: https://realpython.com/async-io-python/
+[perception]    ✓ g:57cafcac — Open research source 2: https://docs.python.org/3/library/asyncio.html
+[perception]    ○ g:39657f59 — Open research source 3: https://www.c-sharpcorner.com/article/python-asyncio-complete-practical-guide-for-concurrent-io/
+[perception]    ○ g:836d9d7b — Synthesize common advice from all fetched sources for: Search for "Python asyncio best practices", read the top 3 results, and give me a short numbered list of the advice they agree on.
+[decision]      TOOL_CALL: fetch_url({"url": "https://www.c-sharpcorner.com/article/python-asyncio-complete-practical-guide-for-concurrent-io/"})
+[action]        → [artifact art:685b13c06659ba0f, 8185 bytes] preview: {   "status": 200,   "content_type": "text/plain",   "length_bytes": 7678,   "text": "Python asyncio — Complete Practical Guide for Concurrent I/O\...   +art:685b13c06659ba0f
+
+─── iter 5 ─────────────────────────────────────────────
+[memory.read]   6 hits
+[perception]    ✓ g:b30c558d — Find the top 3 web sources for Python asyncio best practices
+[perception]    ✓ g:ab9b76a8 — Open research source 1: https://realpython.com/async-io-python/
+[perception]    ✓ g:57cafcac — Open research source 2: https://docs.python.org/3/library/asyncio.html
+[perception]    ✓ g:39657f59 — Open research source 3: https://www.c-sharpcorner.com/article/python-asyncio-complete-practical-guide-for-concurrent-io/
+[perception]    ○ g:836d9d7b — Synthesize common advice from all fetched sources for: Search for "Python asyncio best practices", read the top 3 results, and give me a short numbered list of the advice they agree on.
+[attach]        art:5e4e9319596ff3b9 (57093 bytes)
+[attach]        art:65413db024726609 (4392 bytes)
+[attach]        art:685b13c06659ba0f (8185 bytes)
+[decision]      ANSWER: 1. Use `asyncio.run()` for top-level entrypoints.
+2. Use `await` directly instead of `asyncio.run()`.
+3. Run blocking code safely using `asyncio.to_thread()`.
+
+─── iter 6 ─────────────────────────────────────────────
+[memory.read]   6 hits
+[perception]    ✓ g:b30c558d — Find the top 3 web sources for Python asyncio best practices
+[perception]    ✓ g:ab9b76a8 — Open research source 1: https://realpython.com/async-io-python/
+[perception]    ✓ g:57cafcac — Open research source 2: https://docs.python.org/3/library/asyncio.html
+[perception]    ✓ g:39657f59 — Open research source 3: https://www.c-sharpcorner.com/article/python-asyncio-complete-practical-guide-for-concurrent-io/
+[perception]    ✓ g:836d9d7b — Synthesize common advice from all fetched sources for: Search for "Python asyncio best practices", read the top 3 results, and give me a short numbered list of the advice they agree on.
+
+[done] all 5 goals satisfied
+
+══════════════════════════════════════════════════════════════════════════════
+FINAL: 1. Use `asyncio.run()` for top-level entrypoints.
+2. Use `await` directly instead of `asyncio.run()`.
+3. Run blocking code safely using `asyncio.to_thread()`.
+══════════════════════════════════════════════════════════════════════════════

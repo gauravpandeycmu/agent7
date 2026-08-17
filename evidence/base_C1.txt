@@ -1,0 +1,44 @@
+
+##############################################################################
+QUERY C1 — bound 4 iterations
+##############################################################################
+
+══════════════════════════════════════════════════════════════════════════════
+run b7aee8c4  ─  query: My mom's birthday is 15 May 2026. Remember that and create reminders for two weeks before and on the day.
+══════════════════════════════════════════════════════════════════════════════
+[mcp] loaded 12 tools: ['web_search', 'fetch_url', 'get_time', 'currency_convert', 'weather_forecast', 'read_file', 'list_dir', 'create_file', 'update_file', 'edit_file', 'index_document', 'search_knowledge']
+
+─── iter 1 ─────────────────────────────────────────────
+[memory.read]   2 hits
+[perception]    ○ g:0bff77ec — Save a reminder for 1 May 2026 (two weeks before mom's birthday)
+[perception]    ○ g:56dd60f2 — Save a reminder for 15 May 2026 (mom's birthday)
+[perception]    ○ g:9836debe — Confirm mom's birthday is 15 May 2026 and reminders are 1 May 2026 and 15 May 2026
+[decision]      TOOL_CALL: create_file({"path": "reminder_1_may_2026.txt", "content": "Reminder: two weeks before mom's birthday on 1 May 2026."})
+[action]        → {   "ok": true,   "path": "reminder_1_may_2026.txt",   "size_bytes": 56 }
+
+─── iter 2 ─────────────────────────────────────────────
+[memory.read]   3 hits
+[perception]    ✓ g:0bff77ec — Save a reminder for 1 May 2026 (two weeks before mom's birthday)
+[perception]    ○ g:56dd60f2 — Save a reminder for 15 May 2026 (mom's birthday)
+[perception]    ○ g:9836debe — Confirm mom's birthday is 15 May 2026 and reminders are 1 May 2026 and 15 May 2026
+[decision]      TOOL_CALL: create_file({"path": "reminder_15_may_2026.txt", "content": "Reminder: mom's birthday on 15 May 2026."})
+[action]        → {   "ok": true,   "path": "reminder_15_may_2026.txt",   "size_bytes": 40 }
+
+─── iter 3 ─────────────────────────────────────────────
+[memory.read]   4 hits
+[perception]    ✓ g:0bff77ec — Save a reminder for 1 May 2026 (two weeks before mom's birthday)
+[perception]    ✓ g:56dd60f2 — Save a reminder for 15 May 2026 (mom's birthday)
+[perception]    ○ g:9836debe — Confirm mom's birthday is 15 May 2026 and reminders are 1 May 2026 and 15 May 2026
+[decision]      ANSWER: Mom's birthday is 15 May 2026. Reminders were created for 1 May 2026 and 15 May 2026.
+
+─── iter 4 ─────────────────────────────────────────────
+[memory.read]   4 hits
+[perception]    ✓ g:0bff77ec — Save a reminder for 1 May 2026 (two weeks before mom's birthday)
+[perception]    ✓ g:56dd60f2 — Save a reminder for 15 May 2026 (mom's birthday)
+[perception]    ✓ g:9836debe — Confirm mom's birthday is 15 May 2026 and reminders are 1 May 2026 and 15 May 2026
+
+[done] all 3 goals satisfied
+
+══════════════════════════════════════════════════════════════════════════════
+FINAL: Mom's birthday is 15 May 2026. Reminders were created for 1 May 2026 and 15 May 2026.
+══════════════════════════════════════════════════════════════════════════════

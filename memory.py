@@ -1,317 +1,342 @@
-"""Session 7 Memory: vector-first FAISS read, keyword fallback.
+"""Typed memory with vector-first retrieval and keyword fallback.
 
-Interface preserved from agent6: remember(), read(), record_outcome().
-
-New:
-  index_document(path, chunk_size, overlap) — chunk, embed, persist facts + vectors
-  search_knowledge(query, k) — vector search over indexed chunks
-  chunk_count() — for Query F reporting
-
-Read path (course spec): embed query → FAISS.search. If any vector hits, return
-those. If the index is empty or the gateway is down, fall back to Session 6
-keyword overlap. This is NOT hybrid RRF (that waits for a later session).
+This is the supplied Session 7 Memory service: writes for durable kinds are
+embedded through Gateway V7 and added to a persisted FAISS index. Scratchpad
+items skip embeddings. Reads try FAISS first and use Session 6 keyword overlap
+only when the vector path returns no results.
 """
 
 from __future__ import annotations
 
 import json
 import re
-import time
-import uuid
 from pathlib import Path
 
-import rag
-import vector_store
-from schemas import HistoryEvent, MemoryClassifyOut, MemoryHit, MemoryRecord, ToolCall
-import llm
+from pydantic import BaseModel, Field
 
-ROOT = Path(__file__).parent
-MEM_PATH = ROOT / "state" / "memory.json"
+from gateway import CHAT_PROVIDER, LLM, embed as gateway_embed, ensure_gateway
+from schemas import MemoryItem, ToolCall, new_id
+from vector_index import VectorIndex
 
-_STOP = {
-    "the", "a", "an", "and", "or", "for", "to", "of", "in", "on", "is", "it",
-    "me", "my", "we", "you", "that", "this", "with", "from", "at", "as", "be",
-    "are", "was", "were", "by", "if", "do", "tell", "give", "find", "check",
-    "when", "what", "which", "who", "how", "across", "they", "them", "their",
-}
+STATE_PATH = Path(__file__).parent / "state" / "memory.json"
+STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+EMBEDDABLE_KINDS = {"fact", "preference", "tool_outcome"}
 
 
-def _tokens(text: str) -> list[str]:
-    words = re.findall(r"[a-z0-9]+", text.lower())
-    return [w for w in words if w not in _STOP and len(w) >= 2]
-
-
-def _load() -> list[MemoryRecord]:
-    if not MEM_PATH.exists():
+def _load() -> list[MemoryItem]:
+    if not STATE_PATH.exists():
         return []
-    raw = json.loads(MEM_PATH.read_text(encoding="utf-8"))
-    return [MemoryRecord.model_validate(x) for x in raw]
+    raw = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    return [MemoryItem.model_validate(record) for record in raw]
 
 
-def _save(rows: list[MemoryRecord]) -> None:
-    MEM_PATH.parent.mkdir(parents=True, exist_ok=True)
-    MEM_PATH.write_text(
-        json.dumps([r.model_dump() for r in rows], indent=2),
+def _save(items: list[MemoryItem]) -> None:
+    STATE_PATH.write_text(
+        json.dumps([item.model_dump(mode="json") for item in items], indent=2),
         encoding="utf-8",
     )
 
 
-def _append(row: MemoryRecord) -> None:
-    rows = _load()
-    rows.append(row)
-    _save(rows)
+def _index() -> VectorIndex:
+    """Reload every call so agent and MCP subprocess writes stay in sync."""
+    index = VectorIndex(STATE_PATH.parent)
+    if index.size == 0:
+        for item in _load():
+            if item.embedding is not None:
+                index.add(item.id, item.embedding)
+        if index.size:
+            index.persist()
+    return index
 
 
-def _row_by_id(mem_id: str) -> MemoryRecord | None:
-    for row in _load():
-        if row.id == mem_id:
-            return row
-    return None
-
-
-def _record_to_hit(row: MemoryRecord, *, score_note: str = "") -> MemoryHit:
-    desc = row.value[:400]
-    if row.source.startswith("chunk:"):
-        desc = row.value.split("\n", 1)[0][:400]
-    return MemoryHit(
-        handle=row.id,
-        kind=row.kind,
-        descriptor=desc + score_note,
-        keywords=row.keywords,
-        artifact_id=row.artifact_id,
-        value=row.value,
+def _try_embed(text: str, task_type: str) -> list[float] | None:
+    # A 400-word document chunk can exceed nomic-embed-text's token context
+    # when it contains dense URLs or LaTeX. Embed the complete chunk as small
+    # windows and mean-pool them; queries and short descriptors remain one call.
+    words = text.split()
+    parts = (
+        [" ".join(words[start : start + 180]) for start in range(0, len(words), 180)]
+        if task_type == "retrieval_document" and len(words) > 180
+        else [text]
     )
-
-
-def _try_embed(text: str, *, task_type: str = "retrieval_document") -> list[float] | None:
-    last = None
-    for attempt in range(8):
-        try:
-            return llm.embed(text, task_type=task_type)
-        except Exception as exc:
-            last = exc
-            if attempt < 7:
-                time.sleep(2.0 * (attempt + 1))
-                continue
-            break
-    print(f"[memory] embed failed ({task_type}): {last}")
-    return None
-
-
-def _persist_item(row: MemoryRecord) -> MemoryRecord:
-    """Append memory.json, then FAISS, then write the index. Reload-from-disk
-    on the next read picks up MCP-subprocess writes."""
-    if row.embedding:
-        vector_store.upsert(row.id, row.embedding)
-    _append(row)
-    return row
-
-
-def remember(query: str, source: str, run_id: str) -> MemoryRecord | None:
-    system = (
-        "You extract durable personal facts from a user message. "
-        "Store a fact only if the user stated something that should survive "
-        "into a later conversation (birthday, name, preference, deadline). "
-        "Research questions, URLs to fetch, and 'search for X' are NOT facts. "
-        "keywords: 3-8 lowercase tokens the later search will use."
-    )
-    out = llm.structured(
-        MemoryClassifyOut,
-        f"User message:\n{query}",
-        system=system,
-        provider="g",
-        max_tokens=400,
-    )
-    if not out.store or out.kind == "none" or not out.value.strip():
-        return None
-    keywords = out.keywords or _tokens(out.value + " " + query)
-    row = MemoryRecord(
-        id="mem:" + uuid.uuid4().hex[:10],
-        kind="fact" if out.kind == "fact" else "preference",
-        value=out.value.strip(),
-        keywords=[k.lower() for k in keywords],
-        source=source,
-        run_id=run_id,
-        embedding=_try_embed(out.value.strip(), task_type="retrieval_document"),
-        created_ts=time.time(),
-    )
-    _persist_item(row)
-    print(f"[memory.remember]  classified as {row.kind}")
-    print(f"                   keywords: {row.keywords}")
-    return row
-
-
-def _keyword_hits(query: str, history: list[HistoryEvent], top_k: int) -> list[MemoryHit]:
-    rows = _load()
-    q_terms = set(_tokens(query))
-    for ev in history[-8:]:
-        blob = " ".join(
-            str(x)
-            for x in (ev.text, ev.tool, ev.result_descriptor, ev.artifact_id)
-            if x is not None
-        )
-        q_terms.update(_tokens(blob))
-
-    scored: list[tuple[int, MemoryRecord]] = []
-    for row in rows:
-        overlap = len(q_terms.intersection(set(row.keywords + _tokens(row.value))))
-        if row.kind == "artifact":
-            overlap = max(overlap, 1)
-        if overlap > 0:
-            scored.append((overlap, row))
-    scored.sort(key=lambda x: (x[0], x[1].created_ts), reverse=True)
-
-    if any(m in query.lower() for m in ("when is", "what is", "who is", "tell me when")):
-        seen = {row.id for _, row in scored}
-        for row in rows:
-            if row.kind not in ("fact", "preference") or row.id in seen:
-                continue
-            overlap = len(q_terms.intersection(set(row.keywords + _tokens(row.value))))
-            if overlap >= 1:
-                scored.append((overlap + 10, row))
-        scored.sort(key=lambda x: (x[0], x[1].created_ts), reverse=True)
-
-    return [_record_to_hit(row) for _, row in scored[:top_k]]
-
-
-def _vector_hits(query: str, top_k: int) -> list[MemoryHit]:
-    if vector_store.count_vectors() == 0:
-        return []
-    q_vec = _try_embed(query, task_type="retrieval_query")
-    if not q_vec:
-        return []
-    hits: list[MemoryHit] = []
-    for mem_id, dist in vector_store.search(q_vec, top_k=top_k):
-        row = _row_by_id(mem_id)
-        if not row:
-            continue
-        hits.append(_record_to_hit(row, score_note=f" [vector ip={dist:.3f}]"))
-    return hits
-
-
-def read(query: str, history: list[HistoryEvent], *, top_k: int = 8) -> list[MemoryHit]:
-    """Vector first. Keyword overlap only when FAISS returns nothing."""
     try:
-        vec = _vector_hits(query, top_k=top_k)
+        vectors = [
+            list(gateway_embed(part, task_type=task_type)["embedding"])
+            for part in parts
+        ]
+        if len(vectors) == 1:
+            return vectors[0]
+        return [sum(values) / len(vectors) for values in zip(*vectors)]
     except Exception as exc:
-        print(f"[memory.read] vector path failed, keyword fallback: {exc}")
-        vec = []
-    if vec:
-        return vec
-    return _keyword_hits(query, history, top_k=top_k)
+        print(f"[memory] embedding failed ({exc!r}); item written without vector")
+        return None
 
 
-def record_outcome(
-    tool_call: ToolCall,
-    result_text: str,
-    artifact_id: int | None,
-    run_id: str,
-    goal_id: str,
-) -> MemoryRecord:
-    preview = result_text.replace("\n", " ").strip()[:400]
-    arg_blob = " ".join(str(v) for v in tool_call.arguments.values())
-    keywords = _tokens(f"{tool_call.name} {arg_blob} {preview}")
-    kind: str = "artifact" if artifact_id else "outcome"
-    value = preview
-    if tool_call.name == "web_search":
-        value = result_text[:4000]
-    if artifact_id is not None:
-        value = f"[artifact {artifact_id}] {preview}"
-    embedding = None
-    if not preview.startswith("ERROR"):
-        embedding = _try_embed(preview, task_type="retrieval_document")
-    row = MemoryRecord(
-        id="mem:" + uuid.uuid4().hex[:10],
-        kind=kind,  # type: ignore[arg-type]
-        value=value,
-        keywords=keywords,
-        source=f"tool:{tool_call.name}",
-        run_id=run_id,
-        goal_id=goal_id,
-        artifact_id=artifact_id,
-        embedding=embedding,
-        created_ts=time.time(),
-    )
-    return _persist_item(row)
+STOPWORDS = {
+    "the", "is", "a", "an", "of", "to", "and", "or", "in", "on", "for",
+    "at", "with", "by", "from", "what", "how", "when", "where", "why",
+    "this", "that", "it", "be", "as", "are", "was", "were", "i", "you",
+    "me", "my", "your",
+}
 
 
-def index_document(
-    rel_path: str,
-    *,
-    chunk_size: int = 400,
-    overlap: int = 80,
-    run_id: str = "",
-    goal_id: str | None = None,
-) -> dict:
-    """Read sandbox file or artifact, chunk, embed, persist to memory + FAISS."""
-    if rel_path.startswith("art:"):
-        import artifacts
-
-        art_id = int(rel_path.split(":", 1)[1].strip())
-        text = artifacts.get_bytes(art_id).decode("utf-8", errors="replace")
-        source_label = rel_path
-    else:
-        text = rag.read_document(rel_path)
-        source_label = rel_path
-    chunks = rag.chunk_text(text, chunk_words=chunk_size, overlap=overlap)
-    rows: list[MemoryRecord] = []
-    for i, chunk in enumerate(chunks):
-        descriptor = rag.chunk_descriptor(source_label, i, len(chunks))
-        body = f"{descriptor}\n{chunk}"
-        embedding = _try_embed(chunk, task_type="retrieval_document")
-        if embedding is None:
-            time.sleep(4)
-            embedding = _try_embed(chunk, task_type="retrieval_document")
-        row = MemoryRecord(
-            id=rag.new_chunk_id(),
-            kind="fact",
-            value=body,
-            keywords=_tokens(rel_path + " " + chunk[:200]),
-            source=f"chunk:{rel_path}",
-            run_id=run_id,
-            goal_id=goal_id,
-            embedding=embedding,
-            created_ts=time.time(),
-        )
-        _persist_item(row)
-        rows.append(row)
-        time.sleep(0.35)
+def _tokens(text: str) -> set[str]:
     return {
-        "ok": True,
-        "path": rel_path,
-        "chunks_indexed": len(rows),
-        "chunk_ids": [r.id for r in rows],
+        word
+        for word in re.findall(r"\w+", text.lower())
+        if word not in STOPWORDS and len(word) > 2
     }
 
 
-def search_knowledge(query: str, *, k: int = 5, top_k: int | None = None) -> dict:
-    n = top_k if top_k is not None else k
-    hits = [h for h in _vector_hits(query, top_k=n * 2) if h.kind == "fact"][:n]
-    chunks = [
+def _keyword_search(
+    query: str,
+    history: list[dict] | None,
+    *,
+    kinds: list[str] | None,
+    top_k: int,
+) -> list[MemoryItem]:
+    items = _load()
+    if kinds:
+        items = [item for item in items if item.kind in kinds]
+    query_tokens = _tokens(query)
+    for event in (history or [])[-3:]:
+        query_tokens |= _tokens(json.dumps(event, default=str))
+    scored: list[tuple[int, MemoryItem]] = []
+    for item in items:
+        item_tokens = {word.lower() for word in item.keywords} | _tokens(
+            item.descriptor
+        )
+        score = len(query_tokens & item_tokens)
+        if score:
+            scored.append((score, item))
+    scored.sort(key=lambda pair: -pair[0])
+    return [item for _, item in scored[:top_k]]
+
+
+def _vector_search(
+    query: str, *, kinds: list[str] | None, top_k: int
+) -> list[MemoryItem]:
+    query_vector = _try_embed(query, task_type="retrieval_query")
+    if query_vector is None:
+        return []
+    index = _index()
+    if index.size == 0:
+        return []
+    matches = index.search(query_vector, k=top_k * 2 if kinds else top_k)
+    by_id = {item.id: item for item in _load()}
+    output: list[MemoryItem] = []
+    for item_id, _score in matches:
+        item = by_id.get(item_id)
+        if item is None or (kinds and item.kind not in kinds):
+            continue
+        output.append(item)
+        if len(output) >= top_k:
+            break
+    return output
+
+
+def read(
+    query: str,
+    history: list[dict] | None = None,
+    *,
+    kinds: list[str] | None = None,
+    top_k: int = 8,
+) -> list[MemoryItem]:
+    """Return FAISS hits, or keyword hits only when FAISS has none."""
+    vector_hits = _vector_search(query, kinds=kinds, top_k=top_k)
+    if vector_hits:
+        return vector_hits
+    return _keyword_search(query, history, kinds=kinds, top_k=top_k)
+
+
+class _Classification(BaseModel):
+    kind: str
+    descriptor: str
+    keywords: list[str] = Field(default_factory=list)
+    value: dict = Field(default_factory=dict)
+
+
+def _persist_item(item: MemoryItem) -> MemoryItem:
+    items = _load()
+    items.append(item)
+    _save(items)
+    if item.embedding is not None and item.kind in EMBEDDABLE_KINDS:
+        index = _index()
+        index.add(item.id, item.embedding)
+        index.persist()
+    return item
+
+
+def _fallback_remember(
+    raw_text: str, *, source: str, run_id: str, goal_id: str | None
+) -> MemoryItem:
+    descriptor = raw_text[:200]
+    return _persist_item(
+        MemoryItem(
+            id=new_id("mem"),
+            kind="fact",
+            keywords=list(_tokens(raw_text))[:10],
+            descriptor=descriptor,
+            value={"raw": raw_text},
+            embedding=_try_embed(descriptor, task_type="retrieval_document"),
+            source=source,
+            run_id=run_id,
+            goal_id=goal_id,
+        )
+    )
+
+
+def remember(
+    raw_text: str,
+    *,
+    source: str,
+    run_id: str,
+    goal_id: str | None = None,
+) -> MemoryItem:
+    """Classify a free-form write, preserving the raw text as a fallback."""
+    ensure_gateway()
+    schema = _Classification.model_json_schema()
+    try:
+        reply = _llm_classify(raw_text, schema)
+    except Exception as exc:
+        print(f"[memory.remember] classifier failed ({exc!r}); using fact fallback")
+        return _fallback_remember(
+            raw_text, source=source, run_id=run_id, goal_id=goal_id
+        )
+    parsed = reply.get("parsed") or {}
+    classification = _Classification.model_validate(
         {
-            "mem_id": h.handle,
-            "descriptor": h.descriptor,
-            "text": h.value[:1200],
-            "source": "fact",
+            "kind": parsed.get("kind", "fact"),
+            "descriptor": parsed.get("descriptor", raw_text[:120]),
+            "keywords": parsed.get("keywords") or list(_tokens(raw_text))[:10],
+            "value": parsed.get("value") or {"raw": raw_text},
         }
-        for h in hits
-    ]
-    return {"query": query, "count": len(chunks), "chunks": chunks}
+    )
+    embedding = None
+    if classification.kind in EMBEDDABLE_KINDS:
+        embedding = _try_embed(
+            classification.descriptor, task_type="retrieval_document"
+        )
+    return _persist_item(
+        MemoryItem(
+            id=new_id("mem"),
+            kind=classification.kind,  # type: ignore[arg-type]
+            keywords=[word.lower() for word in classification.keywords],
+            descriptor=classification.descriptor,
+            value=classification.value,
+            embedding=embedding,
+            source=source,
+            run_id=run_id,
+            goal_id=goal_id,
+        )
+    )
 
 
-def chunk_count() -> int:
-    return sum(1 for r in _load() if r.source.startswith("chunk:"))
+def _llm_classify(raw_text: str, schema: dict) -> dict:
+    return LLM().chat(
+        prompt=(
+            "Classify this content into a JSON memory record.\n\n"
+            f"CONTENT: {raw_text!r}\n\n"
+            "Return kind (fact, preference, tool_outcome, or scratchpad), "
+            "a short descriptor containing every concrete name/date/number, "
+            "3-8 lowercase keywords, and a non-empty value dict. If no better "
+            "structure applies, set value.raw to the original content."
+        ),
+        auto_route="memory",
+        provider=CHAT_PROVIDER,
+        response_format={
+            "type": "json_schema",
+            "schema": schema,
+            "name": "Classification",
+            "strict": True,
+        },
+        temperature=1.0,
+    )
 
 
-def reset_index() -> None:
-    vector_store.reset()
+def record_outcome(
+    *,
+    tool_call: ToolCall,
+    result_text: str,
+    artifact_id: str | None,
+    run_id: str,
+    goal_id: str | None,
+) -> MemoryItem:
+    argument_tokens: list[str] = []
+    for value in tool_call.arguments.values():
+        if isinstance(value, str):
+            argument_tokens += _tokens(value)
+        elif isinstance(value, (int, float)):
+            argument_tokens.append(str(value))
+    descriptor = f"{tool_call.name}({json.dumps(tool_call.arguments)[:80]}) -> "
+    descriptor += (
+        f"artifact {artifact_id}"
+        if artifact_id
+        else result_text[:120].replace("\n", " ")
+    )
+    return _persist_item(
+        MemoryItem(
+            id=new_id("mem"),
+            kind="tool_outcome",
+            keywords=list({tool_call.name.lower(), *argument_tokens})[:10],
+            descriptor=descriptor,
+            value={
+                "tool": tool_call.name,
+                "arguments": tool_call.arguments,
+                "result_preview": result_text[:2000],
+            },
+            artifact_id=artifact_id,
+            embedding=_try_embed(descriptor, task_type="retrieval_document"),
+            source="action",
+            run_id=run_id,
+            goal_id=goal_id,
+        )
+    )
 
 
-def clear_chunks() -> int:
-    """Drop all indexed document chunks from memory.json and FAISS."""
-    rows = _load()
-    kept = [r for r in rows if not r.source.startswith("chunk:")]
-    removed = len(rows) - len(kept)
-    _save(kept)
-    reset_index()
-    return removed
+def add_fact(
+    descriptor: str,
+    *,
+    value: dict | None = None,
+    keywords: list[str] | None = None,
+    source: str,
+    run_id: str,
+    goal_id: str | None = None,
+) -> MemoryItem:
+    """Direct fact write for document ingestion (no classifier call).
+
+    Document indexing must not report success for a fact that has no vector.
+    Ordinary agent memories retain their keyword fallback, but an indexed fact
+    is useful only when it can participate in semantic retrieval.
+    """
+    item_value = value or {}
+    chunk_text = item_value.get("chunk")
+    embedding_text = (
+        chunk_text if isinstance(chunk_text, str) and chunk_text.strip() else descriptor
+    )
+    embedding = _try_embed(embedding_text, task_type="retrieval_document")
+    if embedding is None:
+        raise RuntimeError(
+            "Could not embed an indexed fact; no incomplete index entry was written."
+        )
+    return _persist_item(
+        MemoryItem(
+            id=new_id("mem"),
+            kind="fact",
+            keywords=list(
+                {word.lower() for word in (keywords or list(_tokens(descriptor))[:10])}
+            ),
+            descriptor=descriptor,
+            value=item_value,
+            embedding=embedding,
+            source=source,
+            run_id=run_id,
+            goal_id=goal_id,
+        )
+    )
+
+
+def clear() -> None:
+    if STATE_PATH.exists():
+        STATE_PATH.unlink()
+    VectorIndex(STATE_PATH.parent).clear()

@@ -1,0 +1,51 @@
+
+##############################################################################
+QUERY E — bound 5 iterations
+##############################################################################
+
+══════════════════════════════════════════════════════════════════════════════
+run 7242cc6d  ─  query: Index the file papers/attention.md and tell me what the three key contributions of the Transformer architecture are according to this paper.
+══════════════════════════════════════════════════════════════════════════════
+[mcp] loaded 12 tools: ['web_search', 'fetch_url', 'get_time', 'currency_convert', 'weather_forecast', 'read_file', 'list_dir', 'create_file', 'update_file', 'edit_file', 'index_document', 'search_knowledge']
+
+─── iter 1 ─────────────────────────────────────────────
+[memory.read]   1 hits
+[perception]    ○ g:fba9424d — index the file papers/attention.md
+[perception]    ○ g:1056a4e4 — synthesize a summary of the three key contributions of the Transformer architecture
+[decision]      TOOL_CALL: index_document({"path": "papers/attention.md"})
+[action]        → {   "path": "papers/attention.md",   "source": "sandbox:papers/attention.md",   "chunks_indexed": 3,   "chunk_size": 400,   "overlap": 80 }
+
+─── iter 2 ─────────────────────────────────────────────
+[memory.read]   5 hits
+[perception]    ○ g:ca4c0a4c — Query the existing knowledge base for: Index the file papers/attention.md and tell me what the three key contributions of the Transformer architecture are according to this paper.
+[perception]    ○ g:e83672b6 — Answer the user from the retrieved indexed chunks: Index the file papers/attention.md and tell me what the three key contributions of the Transformer architecture are according to this paper.
+[decision]      TOOL_CALL: search_knowledge({"query": "Index the file papers/attention.md and tell me what the three key contributions of the Transformer architectu)
+[action]        → [artifact art:5a92a19795cd9ecc, 9677 bytes] preview: {   "query": "Index the file papers/attention.md and tell me what the three key contributions of the Transformer architecture are according to this...   +art:5a92a19795cd9ecc
+
+─── iter 3 ─────────────────────────────────────────────
+[memory.read]   6 hits
+[perception]    ✓ g:ca4c0a4c — Query the existing knowledge base for: Index the file papers/attention.md and tell me what the three key contributions of the Transformer architecture are according to this paper.
+[perception]    ○ g:e83672b6 — Answer the user from the retrieved indexed chunks: Index the file papers/attention.md and tell me what the three key contributions of the Transformer architecture are according to this paper.  attach=art:5a92a19795cd9ecc
+[attach]        art:5a92a19795cd9ecc (9677 bytes)
+[decision]      ANSWER: According to the paper "Attention Is All You Need" by Vaswani et al., the three key contributions of the Transformer architecture are:
+
+1. **Solely Based on Attention Mechanisms**: The Transformer dis...
+
+─── iter 4 ─────────────────────────────────────────────
+[memory.read]   6 hits
+[perception]    ✓ g:ca4c0a4c — Query the existing knowledge base for: Index the file papers/attention.md and tell me what the three key contributions of the Transformer architecture are according to this paper.
+[perception]    ✓ g:e83672b6 — Answer the user from the retrieved indexed chunks: Index the file papers/attention.md and tell me what the three key contributions of the Transformer architecture are according to this paper.  attach=art:5a92a19795cd9ecc
+
+[done] all 2 goals satisfied
+
+══════════════════════════════════════════════════════════════════════════════
+FINAL: According to the paper "Attention Is All You Need" by Vaswani et al., the three key contributions of the Transformer architecture are:
+
+1. **Solely Based on Attention Mechanisms**: The Transformer dispenses with recurrence and convolutions entirely, relying solely on attention mechanisms to process sequences.
+
+2. **Superior Performance**: The model achieves superior performance on machine translation tasks, outperforming existing models including ensembles by over 2 BLEU on the WMT 2014 English-to-German translation task and establishing a new single-model state-of-the-art BLEU score of 41.8 on the WMT 2014 English-to-French translation task.
+
+3. **Parallelizability and Training Efficiency**: The Transformer is more parallelizable and requires significantly less time to train compared to previous models.
+
+These contributions highlight the effectiveness and efficiency of the Transformer architecture in sequence transduction tasks. (source: sandbox:papers/attention.md)
+══════════════════════════════════════════════════════════════════════════════

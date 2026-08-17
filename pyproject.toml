@@ -1,7 +1,7 @@
 [project]
 name = "agent7"
 version = "0.1.0"
-description = "Assignment 7 — agent6 architecture + hybrid RAG (FAISS + embeddings)"
+description = "Assignment 7 — Session 6 architecture + vector-first RAG with FAISS"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [

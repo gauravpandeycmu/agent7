@@ -1,43 +1,54 @@
-"""Five custom Assignment 7 queries — Formula One RAG corpus.
+"""Five Formula One questions used by the custom RAG demonstration."""
 
-Each query must pass with index populated and fail/degrade without it.
-At least two use semantic recall (query words absent from chunk keywords).
-"""
-
-CUSTOM_QUERIES: list[dict[str, str | bool]] = [
+CUSTOM_QUERIES: list[dict[str, object]] = [
     {
         "id": "FQ1",
-        "query": "What safety device became mandatory in 2003 to protect drivers' necks in frontal impacts?",
-        "needs_index": True,
+        "query": (
+            "What safety device became mandatory in 2003 to protect drivers' "
+            "necks in frontal impacts?"
+        ),
+        "expected_terms": ["HANS", "Head and Neck Support", "2003"],
         "semantic": False,
-        "note": "Keyword hit: HANS in f1_safety_innovations.md",
     },
     {
         "id": "FQ2",
-        "query": "When did Formula One reintroduce ground effect tunnels under the floor?",
-        "needs_index": True,
+        "query": (
+            "When did Formula One reintroduce ground-effect tunnels under "
+            "the floor?"
+        ),
+        "expected_terms": ["2022"],
         "semantic": False,
-        "note": "2022 regulations in f1_hybrid_power_units.md / f1_history.md",
     },
     {
         "id": "FQ3",
-        "query": "What violent vertical oscillation did 2022 ground-effect cars suffer when aerodynamic load peaked?",
-        "needs_index": True,
+        "query": (
+            "In the racing collection, what animal-like term describes the "
+            "rapid up-and-down motion of the new underfloor cars?"
+        ),
+        "expected_terms": ["porpoising"],
         "semantic": True,
-        "note": "Semantic: porpoising — query may not say 'porpoising'",
+        "semantic_probe": "rapid up-and-down motion",
+        "target_source": "f1_hybrid_power_units.md",
     },
     {
         "id": "FQ4",
-        "query": "Which UK driver matched the all-time record for most drivers' titles?",
-        "needs_index": True,
+        "query": (
+            "Which British competitor equalled the championship benchmark "
+            "previously held alone by the dominant German Ferrari driver, "
+            "and how many titles did each hold?"
+        ),
+        "expected_terms": ["Lewis Hamilton", "seven", "Michael Schumacher"],
         "semantic": True,
-        "note": "Semantic: Lewis Hamilton — query does not say Hamilton or seven",
+        "semantic_probe": "British competitor",
+        "target_source": "f1_legendary_drivers.md",
     },
     {
         "id": "FQ5",
-        "query": "Explain the difference between an undercut and an overcut during a Grand Prix.",
-        "needs_index": True,
+        "query": (
+            "Explain the difference between an undercut and an overcut during "
+            "a Grand Prix."
+        ),
+        "expected_terms": ["undercut", "pitting before", "overcut", "staying out longer"],
         "semantic": False,
-        "note": "f1_strategy_and_pit_stops.md — fails without index",
     },
 ]

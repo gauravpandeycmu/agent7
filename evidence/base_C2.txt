@@ -1,0 +1,24 @@
+
+##############################################################################
+QUERY C2 — bound 3 iterations
+##############################################################################
+
+══════════════════════════════════════════════════════════════════════════════
+run 0c615092  ─  query: When is mom's birthday?
+══════════════════════════════════════════════════════════════════════════════
+[mcp] loaded 12 tools: ['web_search', 'fetch_url', 'get_time', 'currency_convert', 'weather_forecast', 'read_file', 'list_dir', 'create_file', 'update_file', 'edit_file', 'index_document', 'search_knowledge']
+
+─── iter 1 ─────────────────────────────────────────────
+[memory.read]   4 hits
+[perception]    ○ g:2c1a6bc4 — Answer the user from durable memory: When is mom's birthday?
+[decision]      ANSWER: Mom's birthday is on 15 May 2026.
+
+─── iter 2 ─────────────────────────────────────────────
+[memory.read]   4 hits
+[perception]    ✓ g:2c1a6bc4 — Answer the user from durable memory: When is mom's birthday?
+
+[done] all 1 goals satisfied
+
+══════════════════════════════════════════════════════════════════════════════
+FINAL: Mom's birthday is on 15 May 2026.
+══════════════════════════════════════════════════════════════════════════════
