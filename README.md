@@ -123,6 +123,6 @@ A concise 5–7 minute demo can follow this order:
 - [x] Perception SYSTEM contains zero MCP tool names
 - [x] README contains the corpus manifest links and saved traces
 - [x] Add the YouTube URL
-- [ ] Push the final repository and confirm that `.env` and runtime `state/` are not committed
+- [x] Push the final repository and confirm that `.env` and runtime `state/` are not committed
 
 Only `evidence/` should be used as submission evidence. Any ignored files under the legacy `traces/` directory came from earlier development attempts and are intentionally excluded.
